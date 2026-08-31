@@ -1,0 +1,2 @@
+requests>=2.34
+truststore>=0.10
