@@ -52,15 +52,18 @@ load_dotenv()
 # CONFIG - edit freely, effect is immediate on the next message you send.
 # =============================================================================
 
-# The assistant's persona. This is the entire "system" prompt sent with every
-# request. Change the text below to change how the bot behaves/talks.
-SYSTEM_PROMPT = (
-    "You are Bosun, a gruff but good-hearted old sailor who has spent forty "
-    "years at sea. You explain things using nautical metaphors when you can, "
-    "call the user 'sailor' or 'matey', and keep your answers direct and "
-    "practical - no fluff. You're knowledgeable about almost everything, you "
-    "just talk like you learned it all on a ship."
-)
+# Named personas. Each value is a full "system" prompt sent with every
+# request. Switch between them live with /persona <name> - see main().
+PERSONAS = {
+    "default": "You are a professional AI assistant. Provide clear, accurate, concise, and easy-to-understand answers. Use simple language, avoid unnecessary jargon, and explain complex concepts in straightforward terms. Stay focused on the user's request and provide practical answers without unnecessary detail.",
+    "telegram": "You are a professional AI assistant. Provide clear, accurate, concise, and easy-to-understand answers. Use simple language, avoid unnecessary jargon, and explain complex concepts in straightforward terms. Stay focused on the user's request and provide practical answers without unnecessary detail. You must answer every question using only very short sentences, no more than 8 words each, like a telegram.",
+}
+DEFAULT_PERSONA = "default"
+
+# The currently active persona name. build_messages() always looks this up
+# fresh, so switching it takes effect on the very next request - no restart,
+# no cache of an old system prompt.
+active_persona = DEFAULT_PERSONA
 
 MODEL = "openai/gpt-oss-120b"
 DEFAULT_TEMPERATURE = 1.0
@@ -98,7 +101,7 @@ def build_messages(history: list) -> list:
     must come first. `history` itself stays plain user/assistant turns; this
     is the one place the system message gets folded in before a request.
     """
-    return [{"role": "system", "content": SYSTEM_PROMPT}] + history
+    return [{"role": "system", "content": PERSONAS[active_persona]}] + history
 
 
 def parse_retry_after(response) -> float:
@@ -181,7 +184,7 @@ def stream_assistant_reply(
         return ""
 
     full_text = ""
-    print("Bosun: ", end="", flush=True)
+    print("Assistant: ", end="", flush=True)
 
     # Groq streams plain "data: {json}" lines (no "event:" line, no typed
     # event names) separated by blank lines, and signals the end of the
@@ -236,6 +239,8 @@ def print_help() -> None:
         "  /history       print the full message list as sent to the API\n"
         "  /temp <value>  set temperature for subsequent turns (0.0-1.0)\n"
         "  /reset         clear conversation history (persona/system prompt stays)\n"
+        "  /persona       show the active persona and list available personas\n"
+        "  /persona <name> switch the active persona (takes effect next message)\n"
         "  /debug on|off  print a timestamp before each streamed chunk's text\n"
         "  /help          show this message\n"
         "  /quit, /exit   leave the chat\n"
@@ -243,12 +248,14 @@ def print_help() -> None:
 
 
 def main() -> None:
+    global active_persona
+
     api_key = get_api_key()
     history = []
     temperature = DEFAULT_TEMPERATURE
     debug = False
 
-    print(f"Chatting with {MODEL} (persona: Bosun). Type /help for commands.\n")
+    print(f"Chatting with {MODEL} (persona: {active_persona}). Type /help for commands.\n")
 
     while True:
         try:
@@ -274,6 +281,23 @@ def main() -> None:
 
         if user_input == "/help":
             print_help()
+            continue
+
+        if user_input == "/persona" or user_input.startswith("/persona "):
+            parts = user_input.split(maxsplit=1)
+            if len(parts) == 1:
+                print(f"\nActive persona: {active_persona}")
+                print("Available personas: " + ", ".join(PERSONAS.keys()) + "\n")
+            else:
+                name = parts[1].strip()
+                if name not in PERSONAS:
+                    print(
+                        f"Unknown persona '{name}'. Available personas: "
+                        + ", ".join(PERSONAS.keys())
+                    )
+                else:
+                    active_persona = name
+                    print(f"Persona switched to '{name}' (history kept).")
             continue
 
         if user_input.startswith("/debug"):
