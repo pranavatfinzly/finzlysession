@@ -13,7 +13,7 @@ import os
 import sys
 import time
 
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows consoles
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]  # Windows consoles
 # often default to a legacy codepage (e.g. cp1252) that can't print every
 # character a model might stream back (curly quotes, em dashes, etc.).
 
@@ -52,18 +52,9 @@ load_dotenv()
 # CONFIG - edit freely, effect is immediate on the next message you send.
 # =============================================================================
 
-# Named personas. Each value is a full "system" prompt sent with every
-# request. Switch between them live with /persona <name> - see main().
-PERSONAS = {
-    "default": "You are a professional AI assistant. Provide clear, accurate, concise, and easy-to-understand answers. Use simple language, avoid unnecessary jargon, and explain complex concepts in straightforward terms. Stay focused on the user's request and provide practical answers without unnecessary detail.",
-    "telegram": "You are a professional AI assistant. Provide clear, accurate, concise, and easy-to-understand answers. Use simple language, avoid unnecessary jargon, and explain complex concepts in straightforward terms. Stay focused on the user's request and provide practical answers without unnecessary detail. You must answer every question using only very short sentences, no more than 8 words each, like a telegram.",
-}
-DEFAULT_PERSONA = "default"
-
-# The currently active persona name. build_messages() always looks this up
-# fresh, so switching it takes effect on the very next request - no restart,
-# no cache of an old system prompt.
-active_persona = DEFAULT_PERSONA
+# The assistant's persona. This is the entire "system" prompt sent with every
+# request. Change the text below to change how the bot behaves/talks.
+SYSTEM_PROMPT = "You are a professional AI assistant. Provide clear, accurate, concise, and easy-to-understand answers. Use simple language, avoid unnecessary jargon, and explain complex concepts in straightforward terms. Stay focused on the user's request and provide practical answers without unnecessary detail."
 
 MODEL = "openai/gpt-oss-120b"
 DEFAULT_TEMPERATURE = 1.0
@@ -101,10 +92,10 @@ def build_messages(history: list) -> list:
     must come first. `history` itself stays plain user/assistant turns; this
     is the one place the system message gets folded in before a request.
     """
-    return [{"role": "system", "content": PERSONAS[active_persona]}] + history
+    return [{"role": "system", "content": SYSTEM_PROMPT}] + history
 
 
-def parse_retry_after(response) -> float:
+def parse_retry_after(response) -> float | None:
     """
     Groq (like most APIs) sends a Retry-After header on 429 responses with
     the number of seconds to wait. Prefer that over a guessed backoff when
@@ -238,9 +229,7 @@ def print_help() -> None:
         "\nCommands:\n"
         "  /history       print the full message list as sent to the API\n"
         "  /temp <value>  set temperature for subsequent turns (0.0-1.0)\n"
-        "  /reset         clear conversation history (persona/system prompt stays)\n"
-        "  /persona       show the active persona and list available personas\n"
-        "  /persona <name> switch the active persona (takes effect next message)\n"
+        "  /reset         clear conversation history (system prompt stays)\n"
         "  /debug on|off  print a timestamp before each streamed chunk's text\n"
         "  /help          show this message\n"
         "  /quit, /exit   leave the chat\n"
@@ -248,14 +237,12 @@ def print_help() -> None:
 
 
 def main() -> None:
-    global active_persona
-
     api_key = get_api_key()
-    history = []
+    history: list[dict] = []
     temperature = DEFAULT_TEMPERATURE
     debug = False
 
-    print(f"Chatting with {MODEL} (persona: {active_persona}). Type /help for commands.\n")
+    print(f"Chatting with {MODEL}. Type /help for commands.\n")
 
     while True:
         try:
@@ -276,28 +263,11 @@ def main() -> None:
 
         if user_input == "/reset":
             history.clear()
-            print("Conversation history cleared (persona unchanged).")
+            print("Conversation history cleared.")
             continue
 
         if user_input == "/help":
             print_help()
-            continue
-
-        if user_input == "/persona" or user_input.startswith("/persona "):
-            parts = user_input.split(maxsplit=1)
-            if len(parts) == 1:
-                print(f"\nActive persona: {active_persona}")
-                print("Available personas: " + ", ".join(PERSONAS.keys()) + "\n")
-            else:
-                name = parts[1].strip()
-                if name not in PERSONAS:
-                    print(
-                        f"Unknown persona '{name}'. Available personas: "
-                        + ", ".join(PERSONAS.keys())
-                    )
-                else:
-                    active_persona = name
-                    print(f"Persona switched to '{name}' (history kept).")
             continue
 
         if user_input.startswith("/debug"):
