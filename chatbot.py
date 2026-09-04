@@ -4,15 +4,12 @@ import sys
 import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]  # Windows consoles
-# often default to a legacy codepage (e.g. cp1252) that can't print every
-# character a model might stream back (curly quotes, em dashes, etc.).
+
 
 import truststore
 
 truststore.inject_into_ssl()  # verify TLS certs against the OS trust store,
-# not just the bundled certifi CA list - needed on networks (e.g. corporate
-# TLS-inspecting proxies) whose root CA is trusted by Windows but isn't in
-# certifi's public CA bundle.
+
 
 import requests
 
