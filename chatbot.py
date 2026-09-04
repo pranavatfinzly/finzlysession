@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-Command-line chatbot that talks to the Groq API  over raw HTTP.
-
-No SDK, no framework. The request body is built by hand,
-sent with `requests`, and the streamed response - plain `data: {json}` lines,
-not typed SSE events - is parsed line-by-line so the wire format is fully
-visible below.
-"""
-
 import json
 import os
 import sys
