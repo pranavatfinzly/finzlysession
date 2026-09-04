@@ -35,12 +35,7 @@ def load_dotenv(path: str = ".env") -> None:
 
 load_dotenv()
 
-# =============================================================================
-# CONFIG - edit freely, effect is immediate on the next message you send.
-# =============================================================================
 
-# The assistant's persona. This is the entire "system" prompt sent with every
-# request. Change the text below to change how the bot behaves/talks.
 SYSTEM_PROMPT = "You are a professional AI assistant. Provide clear, accurate, concise, and easy-to-understand answers. Use simple language, avoid unnecessary jargon, and explain complex concepts in straightforward terms. Stay focused on the user's request and provide practical answers without unnecessary detail."
 
 MODEL = "openai/gpt-oss-120b"
@@ -49,13 +44,11 @@ MAX_TOKENS = 4096
 
 API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# Retry behavior for HTTP 429 (rate limit) responses only.
+
 MAX_RETRIES = 5
 INITIAL_BACKOFF_SECONDS = 1.0
 BACKOFF_MULTIPLIER = 2.0
 MAX_BACKOFF_SECONDS = 30.0
-
-# =============================================================================
 
 
 def get_api_key() -> str:
@@ -150,10 +143,7 @@ def stream_assistant_reply(
         "stream": True,
     }
 
-    # Groq's "text/event-stream" responses don't declare a charset, so
-    # requests falls back to guessing the encoding from partial chunks -
-    # which mangles multi-byte UTF-8 characters (curly quotes, em dashes).
-    # post_with_retry() forces UTF-8 explicitly on every attempt.
+
     response = post_with_retry(headers, payload)
 
     if response.status_code != 200:
@@ -164,10 +154,7 @@ def stream_assistant_reply(
     full_text = ""
     print("Assistant: ", end="", flush=True)
 
-    # Groq streams plain "data: {json}" lines (no "event:" line, no typed
-    # event names) separated by blank lines, and signals the end of the
-    # stream with a literal "data: [DONE]" line instead of a message_stop
-    # event. iter_lines() hands us one raw line at a time.
+    
     for raw_line in response.iter_lines(decode_unicode=True):
         if raw_line is None or raw_line == "":
             continue  # blank line = line separator, nothing to do
